@@ -2,11 +2,21 @@ package toolkit
 
 import (
 	"crypto/rand"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 const randomStringSource = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+"
 
-type Tools struct{}
+type Tools struct {
+	MaxFileSize      int
+	AllowedFileTypes []string
+}
 
 func (t *Tools) RandomString(length int) string {
 	// rune is alias for int32
@@ -54,4 +64,99 @@ func (t *Tools) RandomString(length int) string {
 
 	// finally we're converting all that rune array(bits of characters) into string
 	return string(s)
+}
+
+type UploadFile struct {
+	NewFileName      string
+	OriginalFileName string
+	FileSize         int64
+}
+
+func (t *Tools) UploadFiles(r *http.Request, uploadDirectory string, rename ...bool) ([]*UploadFile, error) {
+	renameFile := true
+	if len(rename) > 0 {
+		renameFile = rename[0]
+	}
+
+	var uploadedFiles []*UploadFile
+
+	if t.MaxFileSize == 0 {
+		t.MaxFileSize = 1024 * 1024 * 1024 // ~1gb
+	}
+
+	err := r.ParseMultipartForm(int64(t.MaxFileSize))
+	if err != nil {
+		return nil, errors.New("uploaded file is too big")
+	}
+
+	for _, fileHeaders := range r.MultipartForm.File {
+		for _, hdr := range fileHeaders {
+			uploadedFiles, err = func(uploadedFiles []*UploadFile) ([]*UploadFile, error) {
+				var uploadedFile UploadFile
+				infile, err := hdr.Open()
+				if err != nil {
+					return nil, err
+				}
+				defer infile.Close()
+
+				buff := make([]byte, 512)
+				_, err = infile.Read(buff)
+				if err != nil {
+					return nil, err
+				}
+
+				allowed := false
+				fileType := http.DetectContentType(buff)
+
+				if len(t.AllowedFileTypes) > 0 {
+					for _, x := range t.AllowedFileTypes {
+						if strings.EqualFold(fileType, x) {
+							allowed = true
+							break
+						}
+					}
+				} else {
+					allowed = true
+				}
+
+				if !allowed {
+					return nil, errors.New("uploaded file type not allowed")
+				}
+
+				_, err = infile.Seek(0, 0)
+				if err != nil {
+					return nil, err
+				}
+
+				if renameFile {
+					uploadedFile.NewFileName = fmt.Sprintf("%s%s", t.RandomString(10), filepath.Ext(hdr.Filename))
+				} else {
+					uploadedFile.NewFileName = hdr.Filename
+				}
+
+				var outfile *os.File
+				defer outfile.Close()
+
+				if outfile, err := os.Create(filepath.Join(uploadDirectory, uploadedFile.NewFileName)); err != nil {
+					return nil, err
+				} else {
+					fileSize, err := io.Copy(outfile, infile)
+					if err != nil {
+						return nil, err
+					}
+
+					uploadedFile.FileSize = fileSize
+				}
+
+				uploadedFiles = append(uploadedFiles, &uploadedFile)
+
+				return uploadedFiles, nil
+			}(uploadedFiles)
+			if err != nil {
+				return uploadedFiles, err
+			}
+		}
+	}
+
+	return uploadedFiles, nil
 }
