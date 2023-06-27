@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -99,14 +100,25 @@ func (t *Tools) UploadFiles(r *http.Request, uploadDirectory string, rename ...b
 				}
 				defer infile.Close()
 
-				buff := make([]byte, 512)
-				_, err = infile.Read(buff)
-				if err != nil {
-					return nil, err
+				// detect file type
+				detectFileType := func(file multipart.File) (string, error) {
+					// most of files just need the first 512 bytes
+					// to identify their type
+					buff := make([]byte, 512)
+					_, err = file.Read(buff)
+					if err != nil {
+						return "", err
+					}
+
+					// we could've passed the entire file size
+					// here, but any way this function will only
+					// take the first 512 bytes
+
+					return http.DetectContentType(buff), nil
 				}
 
 				allowed := false
-				fileType := http.DetectContentType(buff)
+				fileType, err := detectFileType(infile)
 
 				if len(t.AllowedFileTypes) > 0 {
 					for _, x := range t.AllowedFileTypes {
@@ -123,6 +135,9 @@ func (t *Tools) UploadFiles(r *http.Request, uploadDirectory string, rename ...b
 					return nil, errors.New("uploaded file type not allowed")
 				}
 
+				// Since we've read the first 512 bytes of the file
+				// it's necessary to reset the file pointer
+				// so it won't be broken file or something
 				_, err = infile.Seek(0, 0)
 				if err != nil {
 					return nil, err
@@ -137,7 +152,7 @@ func (t *Tools) UploadFiles(r *http.Request, uploadDirectory string, rename ...b
 				var outfile *os.File
 				defer outfile.Close()
 
-				if outfile, err := os.Create(filepath.Join(uploadDirectory, uploadedFile.NewFileName)); err != nil {
+				if outfile, err = os.Create(filepath.Join(uploadDirectory, uploadedFile.NewFileName)); err != nil {
 					return nil, err
 				} else {
 					fileSize, err := io.Copy(outfile, infile)
