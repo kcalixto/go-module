@@ -143,6 +143,7 @@ func (t *Tools) UploadFiles(r *http.Request, uploadDirectory string, rename ...b
 					return nil, err
 				}
 
+				uploadedFile.OriginalFileName = hdr.Filename
 				if renameFile {
 					uploadedFile.NewFileName = fmt.Sprintf("%s%s", t.RandomString(10), filepath.Ext(hdr.Filename))
 				} else {
