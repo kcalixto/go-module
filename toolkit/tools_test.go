@@ -288,21 +288,27 @@ func TestTools_Slugify(t *testing.T) {
 }
 
 func TestTools_DownloadStaticFile(t *testing.T) {
+	// we're using ResponseRecorder to get
+	// info about response after
+	// since we cannot use a pointer to request
+	// to save the information
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/", nil)
 
 	var testTool Tools
 
-	testTool.DownloadStaticFile(rr, req, "./testdata", "image.jpeg", "netflix.jpeg")
+	newFileName := "netflix.jpeg"
+	testTool.DownloadStaticFile(rr, req, "./testdata", "image.jpeg", newFileName)
 
 	res := rr.Result()
 	defer res.Body.Close()
 
-	if res.Header["Content-Length"][0] != "24423" {
+	imageBytesLength := "24423"
+	if res.Header["Content-Length"][0] != imageBytesLength {
 		t.Error("wrong content length of", res.Header["Content-Length"][0])
 	}
 
-	if res.Header["Content-Disposition"][0] != "attachment; filename=\"netflix.jpeg\"" {
+	if res.Header["Content-Disposition"][0] != fmt.Sprintf("attachment; filename=\"%s\"", newFileName) {
 		t.Error("wrong content disposition")
 	}
 
