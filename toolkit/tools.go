@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -234,4 +235,14 @@ func (t *Tools) Slugify(s string) (slug string, err error) {
 	}
 
 	return slug, nil
+}
+
+// Downloads a file, forcing browser to avoid displaying it in windows using Content-Disposition
+func (t *Tools) DownloadStaticFile(w http.ResponseWriter, r *http.Request, p, file, displayName string) {
+	filePath := path.Join(p, file)
+
+	// tels browser to download instead of show up
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", displayName))
+
+	http.ServeFile(w, r, filePath)
 }
