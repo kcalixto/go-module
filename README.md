@@ -1,6 +1,6 @@
 # go-module
 
-## Toolbox
+## Toolkit
 
 A simple example of how to create a reusable Go module with commonly used tools.
 
