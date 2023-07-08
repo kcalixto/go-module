@@ -211,3 +211,19 @@ func TestTools_UploadOneFile(t *testing.T) {
 	// clean up deleting uploaded files
 	_ = os.Remove(fmt.Sprintf("./testdata/uploads/%s", uploadedFile.NewFileName))
 }
+
+func TestTools_CreateDirIfNotExists(t *testing.T) {
+	var testTool Tools
+
+	testDir := "./test-data/myDir"
+
+	err := testTool.CreateDirIfNotExists(testDir)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = os.Remove(testDir)
+	if err != nil {
+		fmt.Println("failed to clean up test space: ", err.Error())
+	}
+}
