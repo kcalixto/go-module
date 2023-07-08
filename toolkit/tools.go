@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -211,4 +212,26 @@ func (t *Tools) CreateDirIfNotExists(path string) (err error) {
 	}
 
 	return nil
+}
+
+// Create slug from string
+// using regex [ˆa-z\d]+
+func (t *Tools) Slugify(s string) (slug string, err error) {
+	if s == "" {
+		return "", errors.New("empty string")
+	}
+
+	var re = regexp.MustCompile(`[^a-z\d]+`)
+
+	slug = strings.Trim(
+		re.ReplaceAllString(
+			strings.ToLower(s), "-",
+		), "-",
+	)
+
+	if len(slug) == 0 {
+		return "", errors.New("slug is zero length")
+	}
+
+	return slug, nil
 }

@@ -227,3 +227,60 @@ func TestTools_CreateDirIfNotExists(t *testing.T) {
 		fmt.Println("failed to clean up test space: ", err.Error())
 	}
 }
+
+var slugTests = []struct {
+	testName      string
+	s             string
+	expected      string
+	errorExpected bool
+}{
+	{
+		testName:      "valid string",
+		s:             "Hello My Dear!!",
+		expected:      "hello-my-dear",
+		errorExpected: false,
+	},
+	{
+		testName:      "empty string",
+		s:             "",
+		expected:      "",
+		errorExpected: true,
+	},
+	{
+		testName:      "complex string",
+		s:             "Now is the time for all GOOD men! - fish & such &^123",
+		expected:      "now-is-the-time-for-all-good-men-fish-such-123",
+		errorExpected: false,
+	},
+	{
+		testName:      "japanese string",
+		s:             "こんにちは、ベイビー",
+		expected:      "",
+		errorExpected: true,
+	},
+	{
+		testName:      "japanese string and roman characters",
+		s:             "Hello Baby! こんにちは、ベイビー",
+		expected:      "hello-baby",
+		errorExpected: false,
+	},
+}
+
+func TestTools_Slugify(t *testing.T) {
+	var testTools Tools
+
+	for _, e := range slugTests {
+		slug, err := testTools.Slugify(e.s)
+		if err != nil {
+			if !e.errorExpected {
+				t.Errorf("%s: error received when not expected %s", e.testName, err.Error())
+			}
+		}
+
+		if !e.errorExpected {
+			if slug != e.expected {
+				t.Errorf("%s: wrong slug returned, expected %s but got %s", e.testName, e.expected, slug)
+			}
+		}
+	}
+}
